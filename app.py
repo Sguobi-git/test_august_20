@@ -1,7 +1,6 @@
 from flask import Flask, render_template, jsonify
 import requests
 import os
-import pandas as pd
 from datetime import datetime
 
 app = Flask(__name__)
