@@ -194,18 +194,35 @@ def get_abacus_data():
             result['data_extraction_attempts'] = data_extraction_attempts
             result['dataset_data_error'] = 'No data extraction method succeeded'
         
-        # Method 1b: Try alternative data extraction methods
+        # Method 2: Try ChatLLM approach (based on your working test code)
         try:
-            # Try to get raw dataset data if pandas doesn't work
-            if hasattr(client, 'describe_dataset_data') and 'dataset_data' not in result:
-                dataset_data = client.describe_dataset_data(DATASET_ID)
-                result['raw_dataset_info'] = {
-                    'method': 'describe_dataset_data',
-                    'type': str(type(dataset_data)),
-                    'data_preview': str(dataset_data)[:500] if dataset_data else None
+            # You have ChatLLM projects available, let's try that approach
+            chatllm_projects = [p for p in projects if getattr(p, 'use_case', '') == 'CHAT_LLM']
+            
+            if chatllm_projects:
+                # Use the first available ChatLLM project
+                project_id = chatllm_projects[0].project_id
+                
+                # Create chat session
+                session = client.create_chat_session(project_id)
+                
+                # Ask for structured data from your booth checklist
+                response = client.get_chat_response(
+                    session.chat_session_id,
+                    "Show me the data from the New_Booth_Check_List_EXACT_COPY table. Display it as a structured table with proper column headers. Show the first 10 rows of actual data, skipping any header or metadata rows."
+                )
+                
+                result['dataset_data'] = {
+                    'method': 'chatllm_query',
+                    'project_id': project_id,
+                    'project_name': chatllm_projects[0].name,
+                    'chat_session_id': session.chat_session_id,
+                    'response': response.content,
+                    'note': 'Data extracted via ChatLLM conversation - may need manual parsing'
                 }
+                
         except Exception as e:
-            result['raw_dataset_error'] = str(e)
+            result['chatllm_error'] = f'ChatLLM approach failed: {str(e)}'
         
         # Method 2: Try to get feature group info
         try:
