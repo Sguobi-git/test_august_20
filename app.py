@@ -9,45 +9,54 @@ app = Flask(__name__)
 ABACUS_API_KEY = os.environ.get('ABACUS_API_KEY')
 FEATURE_GROUP_ID = 'c1c94c2da'
 DATASET_ID = '158d3193e8'
-ABACUS_BASE_URL = 'https://cloud.abacus.ai/api/v0'
+ABACUS_BASE_URL = 'https://api.abacus.ai/api/v0'
 
 def get_abacus_data():
     """Fetch data from Abacus AI dataset"""
     try:
         headers = {
-            'Authorization': f'Bearer {ABACUS_API_KEY}',
+            'apiKey': ABACUS_API_KEY,
             'Content-Type': 'application/json'
         }
         
         # Try to get dataset info first
-        dataset_url = f'{ABACUS_BASE_URL}/datasets/{DATASET_ID}'
-        response = requests.get(dataset_url, headers=headers)
+        dataset_url = f'{ABACUS_BASE_URL}/describeDataset'
+        params = {'datasetId': DATASET_ID}
+        response = requests.get(dataset_url, headers=headers, params=params)
         
         if response.status_code == 200:
             dataset_info = response.json()
             
-            # Try to get the actual data - this endpoint might vary based on Abacus AI's API
-            # You may need to adjust this based on their actual API documentation
-            data_url = f'{ABACUS_BASE_URL}/datasets/{DATASET_ID}/data'
-            data_response = requests.get(data_url, headers=headers)
+            # Try to get feature group data
+            feature_group_url = f'{ABACUS_BASE_URL}/describeFeatureGroup'
+            fg_params = {'featureGroupId': FEATURE_GROUP_ID}
+            fg_response = requests.get(feature_group_url, headers=headers, params=fg_params)
             
-            if data_response.status_code == 200:
-                return {
-                    'success': True,
-                    'dataset_info': dataset_info,
-                    'data': data_response.json(),
-                    'timestamp': datetime.now().isoformat()
-                }
-            else:
-                return {
-                    'success': False,
-                    'error': f'Failed to fetch data: {data_response.status_code}',
-                    'dataset_info': dataset_info
-                }
+            result = {
+                'success': True,
+                'dataset_info': dataset_info,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            if fg_response.status_code == 200:
+                result['feature_group_info'] = fg_response.json()
+            
+            # Try to get some sample data from the feature group
+            try:
+                sample_url = f'{ABACUS_BASE_URL}/getFeatureGroupVersionLogs'
+                sample_params = {'featureGroupId': FEATURE_GROUP_ID}
+                sample_response = requests.get(sample_url, headers=headers, params=sample_params)
+                if sample_response.status_code == 200:
+                    result['sample_data'] = sample_response.json()
+            except:
+                pass  # Sample data is optional
+            
+            return result
         else:
             return {
                 'success': False,
-                'error': f'Failed to fetch dataset info: {response.status_code}'
+                'error': f'Failed to fetch dataset info: {response.status_code} - {response.text}',
+                'api_response': response.text if response.text else 'No response content'
             }
             
     except Exception as e:
