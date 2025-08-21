@@ -92,71 +92,107 @@ def get_abacus_data():
             'available_projects': len(projects) if projects else 0
         }
         
-        # Method 1: Try to get dataset data directly
-        try:
-            # Try pandas data extraction (this often works best)
-            if hasattr(client, 'get_dataset_data_as_pandas'):
-                pandas_data = client.get_dataset_data_as_pandas(DATASET_ID)
-                if pandas_data is not None:
-                    # Debug info
-                    debug_info = {
-                        'has_shape': hasattr(pandas_data, 'shape'),
-                        'type': str(type(pandas_data)),
-                        'length': len(pandas_data) if hasattr(pandas_data, '__len__') else 'No length'
-                    }
-                    
-                    if hasattr(pandas_data, 'shape'):
-                        # Handle the header row issue - line 5 contains column titles (index 4), data starts line 6 (index 5)
-                        if len(pandas_data) > 5:
-                            # Extract actual column headers from line 5 (index 4)
-                            actual_headers = pandas_data.iloc[4].tolist()
-                            # Clean up header names
-                            actual_headers = [str(h).strip() if str(h) != 'nan' and str(h) != 'None' else f'Column_{i}' for i, h in enumerate(actual_headers)]
-                            
-                            # Extract data starting from line 6 (index 5)
-                            data_rows = pandas_data.iloc[5:].copy()
-                            data_rows.columns = actual_headers
-                            
-                            # Remove rows that are entirely empty
-                            data_rows = data_rows.dropna(how='all')
-                            
-                            # Convert to records for display
-                            sample_records = data_rows.head(10).to_dict('records')
-                            
-                            result['dataset_data'] = {
-                                'method': 'pandas_processed',
-                                'shape': data_rows.shape,
-                                'columns': actual_headers,
-                                'sample_data': sample_records,
-                                'total_rows': len(data_rows),
-                                'header_detection': 'Line 5 (index 4)',
-                                'data_start': 'Line 6 (index 5)',
-                                'debug_info': debug_info
-                            }
-                        else:
-                            # Dataset too small
-                            result['dataset_data'] = {
-                                'method': 'pandas_small',
-                                'shape': pandas_data.shape,
-                                'columns': list(pandas_data.columns),
-                                'sample_data': pandas_data.to_dict('records'),
-                                'note': f'Dataset only has {len(pandas_data)} rows - cannot apply line 5/6 logic',
-                                'debug_info': debug_info
-                            }
+        # Method 1: Try multiple data extraction approaches
+        data_extraction_attempts = []
+        
+        # Try different methods to get dataset data
+        methods_to_try = [
+            'get_dataset_data_as_pandas',
+            'describe_dataset_data', 
+            'get_dataset_data',
+            'export_dataset_to_pandas',
+            'get_recent_feature_group_streamed_data'
+        ]
+        
+        for method_name in methods_to_try:
+            try:
+                if hasattr(client, method_name):
+                    method = getattr(client, method_name)
+                    if method_name == 'get_recent_feature_group_streamed_data':
+                        data = method(FEATURE_GROUP_ID)
                     else:
-                        # Not a DataFrame
-                        result['dataset_data'] = {
-                            'method': 'pandas_not_dataframe',
-                            'data_type': str(type(pandas_data)),
-                            'data_preview': str(pandas_data)[:500],
-                            'debug_info': debug_info
-                        }
+                        data = method(DATASET_ID)
+                    
+                    data_extraction_attempts.append({
+                        'method': method_name,
+                        'success': True,
+                        'data_type': str(type(data)),
+                        'has_data': data is not None
+                    })
+                    
+                    if data is not None:
+                        # Process the data based on its type
+                        if hasattr(data, 'shape') and hasattr(data, 'iloc'):
+                            # It's a pandas DataFrame
+                            if len(data) > 5:
+                                # Extract headers from line 5 (index 4), data from line 6+ (index 5+)
+                                actual_headers = data.iloc[4].tolist()
+                                actual_headers = [str(h).strip() if str(h) not in ['nan', 'None', 'NaN'] else f'Column_{i}' for i, h in enumerate(actual_headers)]
+                                
+                                data_rows = data.iloc[5:].copy()
+                                data_rows.columns = actual_headers
+                                data_rows = data_rows.dropna(how='all')
+                                
+                                result['dataset_data'] = {
+                                    'method': f'{method_name}_processed',
+                                    'shape': data_rows.shape,
+                                    'columns': actual_headers,
+                                    'sample_data': data_rows.head(10).to_dict('records'),
+                                    'total_rows': len(data_rows),
+                                    'header_source': 'Line 5 (index 4)',
+                                    'data_start': 'Line 6+ (index 5+)'
+                                }
+                                break
+                            else:
+                                result['dataset_data'] = {
+                                    'method': f'{method_name}_small',
+                                    'shape': data.shape,
+                                    'columns': list(data.columns),
+                                    'sample_data': data.to_dict('records'),
+                                    'note': f'Dataset has {len(data)} rows - too small for line 5/6 processing'
+                                }
+                                break
+                        elif isinstance(data, (list, tuple)):
+                            # It's a list or tuple
+                            if len(data) > 5:
+                                headers = data[4] if isinstance(data[4], (list, tuple)) else [f'Column_{i}' for i in range(len(data[4]) if hasattr(data[4], '__len__') else 9)]
+                                sample_rows = data[5:15] if len(data) > 15 else data[5:]
+                                
+                                result['dataset_data'] = {
+                                    'method': f'{method_name}_list',
+                                    'total_rows': len(data) - 5,
+                                    'columns': headers,
+                                    'sample_data': sample_rows,
+                                    'header_source': 'Index 4 (line 5)',
+                                    'data_start': 'Index 5+ (line 6+)'
+                                }
+                                break
+                        else:
+                            # Unknown data type - show what we got
+                            result['dataset_data'] = {
+                                'method': f'{method_name}_unknown',
+                                'data_type': str(type(data)),
+                                'data_preview': str(data)[:500],
+                                'data_length': len(data) if hasattr(data, '__len__') else 'No length'
+                            }
+                            break
                 else:
-                    result['dataset_data_error'] = 'get_dataset_data_as_pandas returned None'
-            else:
-                result['dataset_data_error'] = 'get_dataset_data_as_pandas method not available'
-        except Exception as e:
-            result['dataset_data_error'] = f'Pandas extraction failed: {str(e)}'
+                    data_extraction_attempts.append({
+                        'method': method_name,
+                        'success': False,
+                        'error': 'Method not available'
+                    })
+            except Exception as e:
+                data_extraction_attempts.append({
+                    'method': method_name,
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        # If no data extraction worked, show what we tried
+        if 'dataset_data' not in result:
+            result['data_extraction_attempts'] = data_extraction_attempts
+            result['dataset_data_error'] = 'No data extraction method succeeded'
         
         # Method 1b: Try alternative data extraction methods
         try:
