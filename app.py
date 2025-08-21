@@ -98,14 +98,53 @@ def get_abacus_data():
             if hasattr(client, 'get_dataset_data_as_pandas'):
                 pandas_data = client.get_dataset_data_as_pandas(DATASET_ID)
                 if pandas_data is not None and hasattr(pandas_data, 'shape'):
-                    result['dataset_data'] = {
-                        'method': 'pandas',
-                        'shape': pandas_data.shape,
-                        'columns': list(pandas_data.columns) if hasattr(pandas_data, 'columns') else [],
-                        'sample_data': pandas_data.head().to_dict('records') if hasattr(pandas_data, 'head') else str(pandas_data)[:500]
-                    }
+                    # Handle the header row issue - row 5 contains column titles, data starts row 6
+                    if len(pandas_data) > 6:
+                        # Extract actual column headers from row 5 (index 4)
+                        actual_headers = pandas_data.iloc[4].tolist()
+                        # Clean up header names
+                        actual_headers = [str(h).strip() if str(h) != 'nan' else f'Column_{i}' for i, h in enumerate(actual_headers)]
+                        
+                        # Extract data starting from row 6 (index 5)
+                        data_rows = pandas_data.iloc[5:].copy()
+                        data_rows.columns = actual_headers
+                        
+                        # Convert to records for display
+                        sample_records = data_rows.head(10).to_dict('records')
+                        
+                        result['dataset_data'] = {
+                            'method': 'pandas_processed',
+                            'shape': data_rows.shape,
+                            'columns': actual_headers,
+                            'sample_data': sample_records,
+                            'total_rows': len(data_rows),
+                            'header_row_detected': 'Row 6 (index 5)',
+                            'data_start_row': 'Row 7 (index 6)'
+                        }
+                    else:
+                        # Fallback for smaller datasets
+                        result['dataset_data'] = {
+                            'method': 'pandas_raw',
+                            'shape': pandas_data.shape,
+                            'columns': list(pandas_data.columns),
+                            'sample_data': pandas_data.head().to_dict('records'),
+                            'note': 'Raw data - may need manual header processing'
+                        }
         except Exception as e:
             result['dataset_data_error'] = str(e)
+        
+        # Method 1b: Try alternative data extraction methods
+        try:
+            # Try to get raw dataset data if pandas doesn't work
+            if hasattr(client, 'describe_dataset_data') and 'dataset_data' not in result:
+                dataset_data = client.describe_dataset_data(DATASET_ID)
+                result['raw_dataset_info'] = {
+                    'method': 'describe_dataset_data',
+                    'type': str(type(dataset_data)),
+                    'data_preview': str(dataset_data)[:500] if dataset_data else None
+                }
+        except Exception as e:
+            result['raw_dataset_error'] = str(e)
         
         # Method 2: Try to get feature group info
         try:
