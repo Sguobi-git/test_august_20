@@ -150,22 +150,32 @@
                 </div>
             {% endif %}
 
-            {% if data_result.data %}
-                <h3>📋 Dataset Contents</h3>
+            <!-- Dataset Data Section -->
+            {% if data_result.dataset_data %}
+                <h3>📊 Dataset Data</h3>
+                <div class="dataset-info">
+                    <p><strong>Method:</strong> {{ data_result.dataset_data.method }}</p>
+                    {% if data_result.dataset_data.shape %}
+                        <p><strong>Shape:</strong> {{ data_result.dataset_data.shape[0] }} rows × {{ data_result.dataset_data.shape[1] }} columns</p>
+                    {% endif %}
+                    {% if data_result.dataset_data.columns %}
+                        <p><strong>Columns:</strong> {{ data_result.dataset_data.columns | join(', ') }}</p>
+                    {% endif %}
+                </div>
                 
-                {% if data_result.data is mapping and 'rows' in data_result.data %}
-                    <!-- If data has a 'rows' structure -->
-                    {% if data_result.data.rows %}
+                {% if data_result.dataset_data.sample_data %}
+                    <h4>Sample Data:</h4>
+                    {% if data_result.dataset_data.sample_data is sequence and data_result.dataset_data.sample_data %}
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    {% for key in data_result.data.rows[0].keys() %}
+                                    {% for key in data_result.dataset_data.sample_data[0].keys() %}
                                         <th>{{ key }}</th>
                                     {% endfor %}
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for row in data_result.data.rows %}
+                                {% for row in data_result.dataset_data.sample_data %}
                                     <tr>
                                         {% for value in row.values() %}
                                             <td>{{ value }}</td>
@@ -174,35 +184,100 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                    {% else %}
+                        <div class="json-display">
+                            <pre>{{ data_result.dataset_data.sample_data }}</pre>
+                        </div>
                     {% endif %}
-                {% elif data_result.data is sequence %}
-                    <!-- If data is a list -->
-                    {% if data_result.data %}
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    {% for key in data_result.data[0].keys() %}
-                                        <th>{{ key }}</th>
-                                    {% endfor %}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in data_result.data %}
-                                    <tr>
-                                        {% for value in row.values() %}
-                                            <td>{{ value }}</td>
-                                        {% endfor %}
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    {% endif %}
-                {% else %}
-                    <!-- Fallback: display raw JSON -->
-                    <div class="json-display">
-                        <pre>{{ data_result.data | tojson(indent=2) }}</pre>
-                    </div>
                 {% endif %}
+            {% endif %}
+
+            <!-- Feature Group Information -->
+            {% if data_result.feature_group_info %}
+                <h3>🔧 Feature Group Details</h3>
+                <div class="dataset-info">
+                    <p><strong>Table Name:</strong> {{ data_result.feature_group_info.table_name }}</p>
+                    <p><strong>Dataset ID:</strong> {{ data_result.feature_group_info.dataset_id }}</p>
+                    <p><strong>Number of Features:</strong> {{ data_result.feature_group_info.features }}</p>
+                    {% if data_result.feature_group_info.feature_names %}
+                        <p><strong>Feature Names:</strong> {{ data_result.feature_group_info.feature_names | join(', ') }}</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- Streaming Data -->
+            {% if data_result.streaming_data %}
+                <h3>📡 Streaming Data</h3>
+                <div class="dataset-info">
+                    <p><strong>Available:</strong> {{ data_result.streaming_data.available }}</p>
+                    <p><strong>Type:</strong> {{ data_result.streaming_data.type }}</p>
+                    {% if data_result.streaming_data.data_preview %}
+                        <div class="json-display">
+                            <pre>{{ data_result.streaming_data.data_preview }}</pre>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- Available Datasets -->
+            {% if data_result.available_datasets %}
+                <h3>📁 Available Datasets</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Source</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dataset in data_result.available_datasets %}
+                            <tr>
+                                <td>{{ dataset.id }}</td>
+                                <td>{{ dataset.name }}</td>
+                                <td>{{ dataset.source }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+
+            <!-- Available Projects -->
+            {% if data_result.projects %}
+                <h3>📋 Available Projects</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Use Case</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for project in data_result.projects %}
+                            <tr>
+                                <td>{{ project.id }}</td>
+                                <td>{{ project.name }}</td>
+                                <td>{{ project.use_case }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+
+            <!-- Error Information -->
+            {% if data_result.dataset_data_error %}
+                <div class="dataset-info">
+                    <h4>Dataset Data Error:</h4>
+                    <p>{{ data_result.dataset_data_error }}</p>
+                </div>
+            {% endif %}
+
+            {% if data_result.feature_group_error %}
+                <div class="dataset-info">
+                    <h4>Feature Group Error:</h4>
+                    <p>{{ data_result.feature_group_error }}</p>
+                </div>
             {% endif %}
 
             {% if data_result.timestamp %}
