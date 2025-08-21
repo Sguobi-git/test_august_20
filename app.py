@@ -7,8 +7,8 @@ app = Flask(__name__)
 
 # Abacus AI configuration
 ABACUS_API_KEY = os.environ.get('ABACUS_API_KEY')
-FEATURE_GROUP_ID = 'c1c94c2da'
-DATASET_ID = '158d3193e8'
+FEATURE_GROUP_ID = '236a2273a'  # Updated to new feature group
+DATASET_ID = '7a88a4bc0'  # Updated to new dataset
 ABACUS_BASE_URL = 'https://api.abacus.ai/api/v0'
 
 from flask import Flask, render_template, jsonify
@@ -94,8 +94,8 @@ def get_abacus_data():
         
         # Method 1: Use SQL query (the working method)
         try:
-            # This is the method that works for "List of documents" feature groups
-            sql_query = "SELECT * FROM Order_Tracking LIMIT 20"  # Use the working table name
+            # Use the correct table name for your new dataset
+            sql_query = "SELECT * FROM Booth_Check_List_EXACT_COPY LIMIT 20"
             data = client.execute_feature_group_sql(sql_query)
             
             if data is not None and hasattr(data, 'shape'):
@@ -117,19 +117,19 @@ def get_abacus_data():
                     
                     result['dataset_data'] = {
                         'method': 'execute_feature_group_sql',
-                        'table_name': 'Order_Tracking',
+                        'table_name': 'Booth_Check_List_EXACT_COPY',
                         'shape': data_rows.shape,
                         'columns': headers,
                         'sample_data': sample_records,
                         'total_rows': len(data_rows),
                         'header_source': 'Row 5 (index 4)',
                         'data_start': 'Row 6+ (index 5+)',
-                        'note': 'Successfully extracted data using SQL query'
+                        'note': 'Successfully extracted booth checklist data using SQL query'
                     }
                 else:
                     result['dataset_data'] = {
                         'method': 'execute_feature_group_sql',
-                        'table_name': 'Order_Tracking', 
+                        'table_name': 'Booth_Check_List_EXACT_COPY', 
                         'raw_shape': data.shape,
                         'raw_data': data.head().to_dict('records'),
                         'note': 'Data has fewer than 5 rows'
