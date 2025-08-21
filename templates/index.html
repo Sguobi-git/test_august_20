@@ -210,6 +210,15 @@
                             <pre>{{ data_result.dataset_data.sample_data }}</pre>
                         </div>
                     {% endif %}
+                {% elif data_result.dataset_data.response %}
+                    <h4>ChatLLM Response:</h4>
+                    <div class="dataset-info">
+                        <p><strong>Project:</strong> {{ data_result.dataset_data.project_name }} ({{ data_result.dataset_data.project_id }})</p>
+                        <p><strong>Session:</strong> {{ data_result.dataset_data.chat_session_id }}</p>
+                    </div>
+                    <div class="json-display">
+                        <pre style="white-space: pre-wrap; word-wrap: break-word;">{{ data_result.dataset_data.response }}</pre>
+                    </div>
                 {% endif %}
             {% endif %}
 
