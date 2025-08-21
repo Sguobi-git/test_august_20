@@ -97,41 +97,66 @@ def get_abacus_data():
             # Try pandas data extraction (this often works best)
             if hasattr(client, 'get_dataset_data_as_pandas'):
                 pandas_data = client.get_dataset_data_as_pandas(DATASET_ID)
-                if pandas_data is not None and hasattr(pandas_data, 'shape'):
-                    # Handle the header row issue - row 5 contains column titles, data starts row 6
-                    if len(pandas_data) > 6:
-                        # Extract actual column headers from row 5 (index 4)
-                        actual_headers = pandas_data.iloc[4].tolist()
-                        # Clean up header names
-                        actual_headers = [str(h).strip() if str(h) != 'nan' else f'Column_{i}' for i, h in enumerate(actual_headers)]
-                        
-                        # Extract data starting from row 6 (index 5)
-                        data_rows = pandas_data.iloc[5:].copy()
-                        data_rows.columns = actual_headers
-                        
-                        # Convert to records for display
-                        sample_records = data_rows.head(10).to_dict('records')
-                        
-                        result['dataset_data'] = {
-                            'method': 'pandas_processed',
-                            'shape': data_rows.shape,
-                            'columns': actual_headers,
-                            'sample_data': sample_records,
-                            'total_rows': len(data_rows),
-                            'header_row_detected': 'Row 6 (index 5)',
-                            'data_start_row': 'Row 7 (index 6)'
-                        }
+                if pandas_data is not None:
+                    # Debug info
+                    debug_info = {
+                        'has_shape': hasattr(pandas_data, 'shape'),
+                        'type': str(type(pandas_data)),
+                        'length': len(pandas_data) if hasattr(pandas_data, '__len__') else 'No length'
+                    }
+                    
+                    if hasattr(pandas_data, 'shape'):
+                        # Handle the header row issue - line 5 contains column titles (index 4), data starts line 6 (index 5)
+                        if len(pandas_data) > 5:
+                            # Extract actual column headers from line 5 (index 4)
+                            actual_headers = pandas_data.iloc[4].tolist()
+                            # Clean up header names
+                            actual_headers = [str(h).strip() if str(h) != 'nan' and str(h) != 'None' else f'Column_{i}' for i, h in enumerate(actual_headers)]
+                            
+                            # Extract data starting from line 6 (index 5)
+                            data_rows = pandas_data.iloc[5:].copy()
+                            data_rows.columns = actual_headers
+                            
+                            # Remove rows that are entirely empty
+                            data_rows = data_rows.dropna(how='all')
+                            
+                            # Convert to records for display
+                            sample_records = data_rows.head(10).to_dict('records')
+                            
+                            result['dataset_data'] = {
+                                'method': 'pandas_processed',
+                                'shape': data_rows.shape,
+                                'columns': actual_headers,
+                                'sample_data': sample_records,
+                                'total_rows': len(data_rows),
+                                'header_detection': 'Line 5 (index 4)',
+                                'data_start': 'Line 6 (index 5)',
+                                'debug_info': debug_info
+                            }
+                        else:
+                            # Dataset too small
+                            result['dataset_data'] = {
+                                'method': 'pandas_small',
+                                'shape': pandas_data.shape,
+                                'columns': list(pandas_data.columns),
+                                'sample_data': pandas_data.to_dict('records'),
+                                'note': f'Dataset only has {len(pandas_data)} rows - cannot apply line 5/6 logic',
+                                'debug_info': debug_info
+                            }
                     else:
-                        # Fallback for smaller datasets
+                        # Not a DataFrame
                         result['dataset_data'] = {
-                            'method': 'pandas_raw',
-                            'shape': pandas_data.shape,
-                            'columns': list(pandas_data.columns),
-                            'sample_data': pandas_data.head().to_dict('records'),
-                            'note': 'Raw data - may need manual header processing'
+                            'method': 'pandas_not_dataframe',
+                            'data_type': str(type(pandas_data)),
+                            'data_preview': str(pandas_data)[:500],
+                            'debug_info': debug_info
                         }
+                else:
+                    result['dataset_data_error'] = 'get_dataset_data_as_pandas returned None'
+            else:
+                result['dataset_data_error'] = 'get_dataset_data_as_pandas method not available'
         except Exception as e:
-            result['dataset_data_error'] = str(e)
+            result['dataset_data_error'] = f'Pandas extraction failed: {str(e)}'
         
         # Method 1b: Try alternative data extraction methods
         try:
