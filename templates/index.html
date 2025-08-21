@@ -161,9 +161,9 @@
                     {% if data_result.dataset_data.total_rows %}
                         <p><strong>Total Data Rows:</strong> {{ data_result.dataset_data.total_rows }}</p>
                     {% endif %}
-                    {% if data_result.dataset_data.header_row_detected %}
-                        <p><strong>Headers Found:</strong> {{ data_result.dataset_data.header_row_detected }}</p>
-                        <p><strong>Data Starts:</strong> {{ data_result.dataset_data.data_start_row }}</p>
+                    {% if data_result.dataset_data.header_source %}
+                        <p><strong>Headers Found:</strong> {{ data_result.dataset_data.header_source }}</p>
+                        <p><strong>Data Starts:</strong> {{ data_result.dataset_data.data_start }}</p>
                     {% endif %}
                     {% if data_result.dataset_data.columns %}
                         <p><strong>Columns:</strong> {{ data_result.dataset_data.columns | join(', ') }}</p>
@@ -177,17 +177,29 @@
                             <table class="data-table">
                                 <thead>
                                     <tr>
-                                        {% for key in data_result.dataset_data.sample_data[0].keys() %}
-                                            <th>{{ key }}</th>
-                                        {% endfor %}
+                                        {% if data_result.dataset_data.sample_data[0] is mapping %}
+                                            {% for key in data_result.dataset_data.sample_data[0].keys() %}
+                                                <th>{{ key }}</th>
+                                            {% endfor %}
+                                        {% else %}
+                                            {% for i in range(data_result.dataset_data.sample_data[0]|length) %}
+                                                <th>Column {{ i }}</th>
+                                            {% endfor %}
+                                        {% endif %}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for row in data_result.dataset_data.sample_data %}
                                         <tr>
-                                            {% for value in row.values() %}
-                                                <td>{{ value if value != 'nan' else '' }}</td>
-                                            {% endfor %}
+                                            {% if row is mapping %}
+                                                {% for value in row.values() %}
+                                                    <td>{{ value if value not in ['nan', 'None', None] else '' }}</td>
+                                                {% endfor %}
+                                            {% else %}
+                                                {% for value in row %}
+                                                    <td>{{ value if value not in ['nan', 'None', None] else '' }}</td>
+                                                {% endfor %}
+                                            {% endif %}
                                         </tr>
                                     {% endfor %}
                                 </tbody>
@@ -199,6 +211,33 @@
                         </div>
                     {% endif %}
                 {% endif %}
+            {% endif %}
+
+            <!-- Data Extraction Attempts -->
+            {% if data_result.data_extraction_attempts %}
+                <h3>🔍 Data Extraction Attempts</h3>
+                <div class="dataset-info">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Method</th>
+                                <th>Available</th>
+                                <th>Success</th>
+                                <th>Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for attempt in data_result.data_extraction_attempts %}
+                                <tr>
+                                    <td>{{ attempt.method }}</td>
+                                    <td>{{ "✅" if attempt.get('success') else "❌" }}</td>
+                                    <td>{{ "✅" if attempt.get('has_data') else "❌" }}</td>
+                                    <td>{{ attempt.get('data_type', attempt.get('error', 'Unknown')) }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             {% endif %}
 
             <!-- Feature Group Information -->
