@@ -158,32 +158,41 @@
                     {% if data_result.dataset_data.shape %}
                         <p><strong>Shape:</strong> {{ data_result.dataset_data.shape[0] }} rows × {{ data_result.dataset_data.shape[1] }} columns</p>
                     {% endif %}
+                    {% if data_result.dataset_data.total_rows %}
+                        <p><strong>Total Data Rows:</strong> {{ data_result.dataset_data.total_rows }}</p>
+                    {% endif %}
+                    {% if data_result.dataset_data.header_row_detected %}
+                        <p><strong>Headers Found:</strong> {{ data_result.dataset_data.header_row_detected }}</p>
+                        <p><strong>Data Starts:</strong> {{ data_result.dataset_data.data_start_row }}</p>
+                    {% endif %}
                     {% if data_result.dataset_data.columns %}
                         <p><strong>Columns:</strong> {{ data_result.dataset_data.columns | join(', ') }}</p>
                     {% endif %}
                 </div>
                 
                 {% if data_result.dataset_data.sample_data %}
-                    <h4>Sample Data:</h4>
+                    <h4>Sample Data (First 10 Rows):</h4>
                     {% if data_result.dataset_data.sample_data is sequence and data_result.dataset_data.sample_data %}
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    {% for key in data_result.dataset_data.sample_data[0].keys() %}
-                                        <th>{{ key }}</th>
-                                    {% endfor %}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in data_result.dataset_data.sample_data %}
+                        <div style="overflow-x: auto;">
+                            <table class="data-table">
+                                <thead>
                                     <tr>
-                                        {% for value in row.values() %}
-                                            <td>{{ value }}</td>
+                                        {% for key in data_result.dataset_data.sample_data[0].keys() %}
+                                            <th>{{ key }}</th>
                                         {% endfor %}
                                     </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {% for row in data_result.dataset_data.sample_data %}
+                                        <tr>
+                                            {% for value in row.values() %}
+                                                <td>{{ value if value != 'nan' else '' }}</td>
+                                            {% endfor %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     {% else %}
                         <div class="json-display">
                             <pre>{{ data_result.dataset_data.sample_data }}</pre>
